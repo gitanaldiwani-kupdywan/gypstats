@@ -1,14 +1,41 @@
 #!/usr/bin/env python3
 import argparse
+import json
 import os
 import sqlite3
 import sys
-from datetime import datetime
+import urllib.error
+import urllib.request
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import matplotlib.pyplot as plt
 from matplotlib import font_manager
 from matplotlib.patches import Rectangle
+
+NBP_USDPLN_URL = "https://api.nbp.pl/api/exchangerates/rates/a/usd/{date}/?format=json"
+
+
+def fetch_usdpln(date_str: str, cache: dict):
+    if date_str in cache:
+        return cache[date_str]
+    url = NBP_USDPLN_URL.format(date=date_str)
+    req = urllib.request.Request(
+        url,
+        headers={
+            "Accept": "application/json",
+            "User-Agent": "GypStats/1.0",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        rate = data["rates"][0]["mid"]
+        cache[date_str] = rate
+        return rate
+    except urllib.error.HTTPError:
+        cache[date_str] = None
+        return None
 
 
 def load_series(db_path: str, column: str):
@@ -55,31 +82,67 @@ def load_joined_series(gold_db: str, silver_db: str):
     return list(dates), list(xauusd), list(xagusd)
 
 
+def ensure_gsp_table(conn: sqlite3.Connection):
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS gsp (
+            date TEXT PRIMARY KEY,
+            xauusd REAL NOT NULL,
+            xagusd REAL NOT NULL,
+            gsr REAL NOT NULL,
+            usdpln REAL,
+            xaupln REAL,
+            xagpln REAL
+        )
+        """
+    )
+    cur = conn.execute("PRAGMA table_info(gsp)")
+    cols = {row[1] for row in cur.fetchall()}
+    for col, coltype in (("usdpln", "REAL"), ("xaupln", "REAL"), ("xagpln", "REAL")):
+        if col not in cols:
+            conn.execute(f"ALTER TABLE gsp ADD COLUMN {col} {coltype}")
+
+
 def write_gspln_db(db_path: str, dates, xauusd, xagusd):
     conn = sqlite3.connect(db_path)
     try:
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS gsp (
-                date TEXT PRIMARY KEY,
-                xauusd REAL NOT NULL,
-                xagusd REAL NOT NULL,
-                gsr REAL NOT NULL
-            )
-            """
-        )
+        ensure_gsp_table(conn)
         conn.execute("DELETE FROM gsp")
         rows = []
+        usd_cache = {}
+        usdpln_list = []
+        xaupln_list = []
+        xagpln_list = []
         for d, g, s in zip(dates, xauusd, xagusd):
             if s:
-                rows.append((d, float(g), float(s), float(g) / float(s)))
+                usdpln = fetch_usdpln(d, usd_cache)
+                if usdpln is None:
+                    # Try up to 7 days back for last available NBP fixing.
+                    back = datetime.strptime(d, "%Y-%m-%d")
+                    for _ in range(7):
+                        back = back.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)
+                        ds = back.strftime("%Y-%m-%d")
+                        usdpln = fetch_usdpln(ds, usd_cache)
+                        if usdpln is not None:
+                            break
+                if usdpln is not None:
+                    xaupln = float(g) * float(usdpln)
+                    xagpln = float(s) * float(usdpln)
+                else:
+                    xaupln = None
+                    xagpln = None
+                rows.append((d, float(g), float(s), float(g) / float(s), usdpln, xaupln, xagpln))
+                usdpln_list.append(usdpln)
+                xaupln_list.append(xaupln)
+                xagpln_list.append(xagpln)
         conn.executemany(
-            "INSERT OR REPLACE INTO gsp (date, xauusd, xagusd, gsr) VALUES (?, ?, ?, ?)",
+            "INSERT OR REPLACE INTO gsp (date, xauusd, xagusd, gsr, usdpln, xaupln, xagpln) VALUES (?, ?, ?, ?, ?, ?, ?)",
             rows,
         )
         conn.commit()
     finally:
         conn.close()
+    return usdpln_list, xaupln_list, xagpln_list
 
 
 def main():
@@ -171,7 +234,7 @@ def main():
 
     joined_dates, joined_xauusd, joined_xagusd = load_joined_series(gold_db, silver_db)
     if joined_dates:
-        write_gspln_db(gspln_db, joined_dates, joined_xauusd, joined_xagusd)
+        usdpln_list, xaupln_list, xagpln_list = write_gspln_db(gspln_db, joined_dates, joined_xauusd, joined_xagusd)
         gsr_values = [g / s for g, s in zip(joined_xauusd, joined_xagusd)]
 
         fig, axes = plt.subplots(4, 1, figsize=(10, 12), sharex=True)
@@ -308,6 +371,78 @@ def main():
             print(f"Saved plot to {all_out}")
         if args.show:
             plt.show()
+
+        # PLN-based plots (filter out missing PLN rates)
+        pln_dates = []
+        pln_xau = []
+        pln_xag = []
+        pln_gsr = []
+        for d, xp, sp, gsr in zip(joined_dates, xaupln_list, xagpln_list, gsr_values):
+            if xp is None or sp is None:
+                continue
+            pln_dates.append(d)
+            pln_xau.append(xp)
+            pln_xag.append(sp)
+            pln_gsr.append(gsr)
+
+        if pln_dates:
+            fig_pln, axes_pln = plt.subplots(4, 1, figsize=(10, 12), sharex=True)
+            banner_pln = Rectangle(
+                (0.0, 0.92),
+                1.0,
+                0.08,
+                transform=fig_pln.transFigure,
+                facecolor="#10263a",
+                edgecolor="#6cc1ff",
+                linewidth=2.5,
+                hatch="..//",
+                alpha=0.98,
+                zorder=2,
+            )
+            fig_pln.add_artist(banner_pln)
+            fig_pln.suptitle(
+                "GypStats PLN",
+                fontproperties=fp,
+                fontsize=30,
+                fontweight="bold",
+                color="#cfe8ff",
+                y=0.98,
+                bbox=dict(
+                    boxstyle="round,pad=0.35",
+                    facecolor="#0b1824",
+                    edgecolor="#6cc1ff",
+                    linewidth=3.0,
+                ),
+            )
+            plot_one(pln_dates, pln_xau, "XAUPLN (PLN per troy oz)", "PLN / XAU", axes_pln[0], color="#d4af37", linewidth=2.6)
+            plot_one(pln_dates, pln_xag, "XAGPLN (PLN per troy oz)", "PLN / XAG", axes_pln[1], color="#c0c0c0", linewidth=2.6)
+            plot_one(pln_dates, pln_gsr, "GSR (XAUUSD / XAGUSD)", "Ratio", axes_pln[2], color="#d64545", linewidth=2.0, linestyle=":")
+
+            def normalize(series):
+                if not series or series[0] == 0:
+                    return series
+                base = float(series[0])
+                return [float(v) / base for v in series]
+
+            axes_pln[3].plot(pln_dates, normalize(pln_xau), linestyle="-", linewidth=2.6, color="#d4af37", label="XAUPLN")
+            axes_pln[3].plot(pln_dates, normalize(pln_xag), linestyle="--", linewidth=2.6, color="#c0c0c0", label="XAGPLN")
+            axes_pln[3].plot(pln_dates, normalize(pln_gsr), linestyle=":", linewidth=2.0, color="#d64545", label="GSR")
+            axes_pln[3].set_title("Trends overlay (normalized)")
+            axes_pln[3].set_ylabel("Index")
+            axes_pln[3].legend(loc="upper left")
+            for label in axes_pln[3].get_xticklabels():
+                label.set_rotation(45)
+            fig_pln.tight_layout(rect=(0, 0, 1, 0.865))
+
+            allpl_out = os.path.join("plots", "allpl.png")
+            if not os.path.isabs(allpl_out):
+                allpl_out = os.path.join(os.path.dirname(__file__), allpl_out)
+            fig_pln.savefig(allpl_out, dpi=150)
+            print(f"Saved plot to {allpl_out}")
+            if args.show:
+                plt.show()
+        else:
+            print("No PLN data available to plot allpl.png.", file=sys.stderr)
     else:
         print("No joined xauusd/xagusd data to compute GSR.", file=sys.stderr)
 
