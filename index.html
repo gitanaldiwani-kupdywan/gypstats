@@ -60,6 +60,30 @@
       gap: 12px;
       margin-top: 16px;
     }
+    .rates {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .rate-item {
+      background: #0f141c;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+    }
+    .rate-item span {
+      color: var(--muted);
+      letter-spacing: 0.2px;
+    }
+    .rate-item strong {
+      color: #ffffff;
+      font-size: 14px;
+    }
     .link-card {
       background: #10151d;
       border: 1px solid var(--line);
@@ -103,6 +127,12 @@
 
   <div class="container">
     <div class="card">
+      <div class="rates">
+        <div class="rate-item"><span>XAU/USD</span><strong id="rate-xauusd">—</strong></div>
+        <div class="rate-item"><span>XAG/USD</span><strong id="rate-xagusd">—</strong></div>
+        <div class="rate-item"><span>XAU/PLN</span><strong id="rate-xaupln">—</strong></div>
+        <div class="rate-item"><span>XAG/PLN</span><strong id="rate-xagpln">—</strong></div>
+      </div>
       <img class="plot" src="plots/all.png" alt="Wykresy: XAUUSD, XAGUSD, GSR" />
       <img class="plot" src="plots/allpl.png" alt="Wykresy: XAUPLN, XAGPLN, GSR" style="margin-top: 14px;" />
       <div class="links">

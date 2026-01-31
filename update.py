@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import re
 import sqlite3
 import subprocess
 import sys
@@ -31,6 +32,47 @@ def run_range(script_path: str, start_dt: date, end_dt: date):
     cmd = [sys.executable, script_path, "--start", start_dt.strftime("%Y-%m-%d"), "--end", end_dt.strftime("%Y-%m-%d")]
     print("Running:", " ".join(cmd))
     subprocess.run(cmd, check=True)
+
+def update_index_html(repo_dir: str, gspln_db: str):
+    if not os.path.exists(gspln_db):
+        print("GSPLN.db not found; skipping index update.")
+        return
+    conn = sqlite3.connect(gspln_db)
+    try:
+        cur = conn.execute(
+            """
+            SELECT date, xauusd, xagusd, xaupln, xagpln
+            FROM gsp
+            WHERE xauusd IS NOT NULL AND xagusd IS NOT NULL
+            ORDER BY date DESC
+            LIMIT 1
+            """
+        )
+        row = cur.fetchone()
+    finally:
+        conn.close()
+    if not row:
+        print("No data in GSPLN.db; skipping index update.")
+        return
+    _, xauusd, xagusd, xaupln, xagpln = row
+    index_path = os.path.join(repo_dir, "index.html")
+    if not os.path.exists(index_path):
+        print("index.html not found; skipping index update.")
+        return
+    with open(index_path, "r", encoding="utf-8") as f:
+        html = f.read()
+    def rep(id_, value):
+        return re.sub(
+            rf'(<strong id="{id_}">)([^<]*)(</strong>)',
+            rf"\\1{value}\\3",
+            html,
+        )
+    html = rep("rate-xauusd", f"{xauusd:.2f}")
+    html = rep("rate-xagusd", f"{xagusd:.2f}")
+    html = rep("rate-xaupln", f"{xaupln:.2f}" if xaupln is not None else "—")
+    html = rep("rate-xagpln", f"{xagpln:.2f}" if xagpln is not None else "—")
+    with open(index_path, "w", encoding="utf-8") as f:
+        f.write(html)
 
 def git_sync(repo_dir: str):
     if not os.path.isdir(os.path.join(repo_dir, ".git")):
@@ -83,6 +125,7 @@ def main():
     cmd = [sys.executable, plot_script]
     print("Running:", " ".join(cmd))
     subprocess.run(cmd, check=True)
+    update_index_html(here, os.path.join(here, "GSPLN.db"))
 
     # Push DBs + plots to GitHub
     git_sync(here)
