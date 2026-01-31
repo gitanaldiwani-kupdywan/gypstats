@@ -54,23 +54,24 @@ def update_index_html(repo_dir: str, gspln_db: str):
     if not row:
         print("No data in GSPLN.db; skipping index update.")
         return
-    _, xauusd, xagusd, xaupln, xagpln = row
+    last_date, xauusd, xagusd, xaupln, xagpln = row
     index_path = os.path.join(repo_dir, "index.html")
     if not os.path.exists(index_path):
         print("index.html not found; skipping index update.")
         return
     with open(index_path, "r", encoding="utf-8") as f:
         html = f.read()
-    def rep(id_, value):
+    def rep(id_, value, src):
         return re.sub(
             rf'(<strong id="{id_}">)([^<]*)(</strong>)',
-            rf"\\1{value}\\3",
-            html,
+            lambda m: f"{m.group(1)}{value}{m.group(3)}",
+            src,
         )
-    html = rep("rate-xauusd", f"{xauusd:.2f}")
-    html = rep("rate-xagusd", f"{xagusd:.2f}")
-    html = rep("rate-xaupln", f"{xaupln:.2f}" if xaupln is not None else "—")
-    html = rep("rate-xagpln", f"{xagpln:.2f}" if xagpln is not None else "—")
+    html = rep("rate-xauusd", f"{xauusd:.2f}", html)
+    html = rep("rate-xagusd", f"{xagusd:.2f}", html)
+    html = rep("rate-xaupln", f"{xaupln:.2f}" if xaupln is not None else "—", html)
+    html = rep("rate-xagpln", f"{xagpln:.2f}" if xagpln is not None else "—", html)
+    html = rep("rate-date", last_date, html)
     with open(index_path, "w", encoding="utf-8") as f:
         f.write(html)
 
