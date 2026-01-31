@@ -400,6 +400,19 @@ def main():
                 zorder=2,
             )
             fig_pln.add_artist(banner_pln)
+            sub_banner_pln = Rectangle(
+                (0.0, 0.865),
+                1.0,
+                0.045,
+                transform=fig_pln.transFigure,
+                facecolor="#0f1a24",
+                edgecolor="#6cc1ff",
+                linewidth=2.0,
+                hatch="..//",
+                alpha=0.95,
+                zorder=2,
+            )
+            fig_pln.add_artist(sub_banner_pln)
             fig_pln.suptitle(
                 "GypStats PLN",
                 fontproperties=fp,
@@ -412,6 +425,24 @@ def main():
                     facecolor="#0b1824",
                     edgecolor="#6cc1ff",
                     linewidth=3.0,
+                ),
+            )
+            fig_pln.text(
+                0.5,
+                0.887,
+                sub_text,
+                ha="center",
+                va="center",
+                fontsize=10,
+                color="#cfe8ff",
+                fontweight="bold",
+                family="DejaVu Sans",
+                bbox=dict(
+                    boxstyle="round,pad=0.25",
+                    facecolor="#0b121a",
+                    edgecolor="#6cc1ff",
+                    linewidth=1.0,
+                    alpha=0.95,
                 ),
             )
             plot_one(pln_dates, pln_xau, "XAUPLN (PLN per troy oz)", "PLN / XAU", axes_pln[0], color="#d4af37", linewidth=2.6)
