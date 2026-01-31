@@ -1,0 +1,31 @@
+name: Update data and plots
+
+on:
+  schedule:
+    - cron: '0 0,6,12,18 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install matplotlib
+      - name: Run update
+        env:
+          METALPRICE_API_KEY: ${{ secrets.METALPRICE_API_KEY }}
+        run: |
+          python update.py
