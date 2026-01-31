@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GypStats — wykresy i dane</title>
+  <style>
+    :root {
+      --bg: #0c0f14;
+      --card: #151a22;
+      --accent: #ffd36b;
+      --muted: #a9b1bd;
+      --line: #2a3240;
+      --gold: #d4af37;
+      --silver: #c0c0c0;
+      --blue: #6cc1ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "DejaVu Sans", "Segoe UI", Arial, sans-serif;
+      background: radial-gradient(1200px 600px at 10% -10%, #1b2431 0%, var(--bg) 55%) no-repeat;
+      color: #f4f6f9;
+    }
+    header {
+      padding: 32px 20px 10px;
+      text-align: center;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 36px;
+      color: var(--accent);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    p.subtitle {
+      margin: 0;
+      color: var(--muted);
+    }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+    }
+    .plot {
+      width: 100%;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+    }
+    .links {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .link-card {
+      background: #10151d;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .link-card h3 {
+      margin: 0 0 6px;
+      font-size: 16px;
+      color: #f4f6f9;
+    }
+    .link-card p {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    a.download {
+      display: inline-block;
+      padding: 8px 10px;
+      border-radius: 8px;
+      text-decoration: none;
+      color: #0b0f14;
+      background: var(--accent);
+      font-weight: 700;
+      font-size: 13px;
+    }
+    footer {
+      text-align: center;
+      color: var(--muted);
+      padding: 12px 0 28px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>GypStats</h1>
+    <p class="subtitle">Złoto, srebro i wskaźnik GSR — wykresy oraz dane do pobrania</p>
+  </header>
+
+  <div class="container">
+    <div class="card">
+      <img class="plot" src="plots/all.png" alt="Wykresy: XAUUSD, XAGUSD, GSR" />
+      <div class="links">
+        <div class="link-card">
+          <h3>goldprice.db (złoto)</h3>
+          <p>Baza z dziennymi notowaniami XAUUSD oraz wyliczonym XAUUSD (USD/oz).</p>
+          <a class="download" href="goldprice.db" download>Pobierz bazę</a>
+        </div>
+        <div class="link-card">
+          <h3>silverprice.db (srebro)</h3>
+          <p>Baza z dziennymi notowaniami XAGUSD oraz wyliczonym XAGUSD (USD/oz).</p>
+          <a class="download" href="silverprice.db" download>Pobierz bazę</a>
+        </div>
+        <div class="link-card">
+          <h3>GSPLN.db (połączone)</h3>
+          <p>Połączone dane z obu baz + GSR (gold‑silver‑ratio) dla wspólnych dat.</p>
+          <a class="download" href="GSPLN.db" download>Pobierz bazę</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Dane aktualizowane automatycznie kilka razy dziennie.
+  </footer>
+</body>
+</html>
