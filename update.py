@@ -61,17 +61,27 @@ def update_index_html(repo_dir: str, gspln_db: str):
         return
     with open(index_path, "r", encoding="utf-8") as f:
         html = f.read()
+    replacements = {
+        "{{XAUUSD}}": f"{xauusd:.2f}",
+        "{{XAGUSD}}": f"{xagusd:.2f}",
+        "{{XAUPLN}}": f"{xaupln:.2f}" if xaupln is not None else "—",
+        "{{XAGPLN}}": f"{xagpln:.2f}" if xagpln is not None else "—",
+        "{{DATE}}": last_date,
+    }
+    for key, val in replacements.items():
+        html = html.replace(key, val)
+    # Fallback: replace inside strong tags if tokens are missing
     def rep(id_, value, src):
         return re.sub(
             rf'(<strong id="{id_}">)([^<]*)(</strong>)',
             lambda m: f"{m.group(1)}{value}{m.group(3)}",
             src,
         )
-    html = rep("rate-xauusd", f"{xauusd:.2f}", html)
-    html = rep("rate-xagusd", f"{xagusd:.2f}", html)
-    html = rep("rate-xaupln", f"{xaupln:.2f}" if xaupln is not None else "—", html)
-    html = rep("rate-xagpln", f"{xagpln:.2f}" if xagpln is not None else "—", html)
-    html = rep("rate-date", last_date, html)
+    html = rep("rate-xauusd", replacements["{{XAUUSD}}"], html)
+    html = rep("rate-xagusd", replacements["{{XAGUSD}}"], html)
+    html = rep("rate-xaupln", replacements["{{XAUPLN}}"], html)
+    html = rep("rate-xagpln", replacements["{{XAGPLN}}"], html)
+    html = rep("rate-date", replacements["{{DATE}}"], html)
     with open(index_path, "w", encoding="utf-8") as f:
         f.write(html)
 
