@@ -107,7 +107,8 @@ def write_gspln_db(db_path: str, dates, xauusd, xagusd):
     conn = sqlite3.connect(db_path)
     try:
         ensure_gsp_table(conn)
-        conn.execute("DELETE FROM gsp")
+        cur = conn.execute("SELECT date, usdpln, xaupln, xagpln FROM gsp")
+        existing = {row[0]: (row[1], row[2], row[3]) for row in cur.fetchall()}
         rows = []
         usd_cache = {}
         usdpln_list = []
@@ -115,22 +116,24 @@ def write_gspln_db(db_path: str, dates, xauusd, xagusd):
         xagpln_list = []
         for d, g, s in zip(dates, xauusd, xagusd):
             if s:
-                usdpln = fetch_usdpln(d, usd_cache)
-                if usdpln is None:
-                    # Try up to 7 days back for last available NBP fixing.
-                    back = datetime.strptime(d, "%Y-%m-%d")
-                    for _ in range(7):
-                        back = back.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)
-                        ds = back.strftime("%Y-%m-%d")
-                        usdpln = fetch_usdpln(ds, usd_cache)
-                        if usdpln is not None:
-                            break
-                if usdpln is not None:
-                    xaupln = float(g) * float(usdpln)
-                    xagpln = float(s) * float(usdpln)
-                else:
-                    xaupln = None
-                    xagpln = None
+                usdpln, xaupln, xagpln = existing.get(d, (None, None, None))
+                if usdpln is None or xaupln is None or xagpln is None:
+                    usdpln = fetch_usdpln(d, usd_cache)
+                    if usdpln is None:
+                        # Try up to 7 days back for last available NBP fixing.
+                        back = datetime.strptime(d, "%Y-%m-%d")
+                        for _ in range(7):
+                            back = back.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)
+                            ds = back.strftime("%Y-%m-%d")
+                            usdpln = fetch_usdpln(ds, usd_cache)
+                            if usdpln is not None:
+                                break
+                    if usdpln is not None:
+                        xaupln = float(g) * float(usdpln)
+                        xagpln = float(s) * float(usdpln)
+                    else:
+                        xaupln = None
+                        xagpln = None
                 rows.append((d, float(g), float(s), float(g) / float(s), usdpln, xaupln, xagpln))
                 usdpln_list.append(usdpln)
                 xaupln_list.append(xaupln)
@@ -392,9 +395,9 @@ def main():
                 1.0,
                 0.08,
                 transform=fig_pln.transFigure,
-                facecolor="#10263a",
-                edgecolor="#6cc1ff",
-                linewidth=2.5,
+                facecolor="#ffffff",
+                edgecolor="#d32f2f",
+                linewidth=2.8,
                 hatch="..//",
                 alpha=0.98,
                 zorder=2,
@@ -405,9 +408,9 @@ def main():
                 1.0,
                 0.045,
                 transform=fig_pln.transFigure,
-                facecolor="#0f1a24",
-                edgecolor="#6cc1ff",
-                linewidth=2.0,
+                facecolor="#d32f2f",
+                edgecolor="#ffffff",
+                linewidth=2.2,
                 hatch="..//",
                 alpha=0.95,
                 zorder=2,
@@ -418,12 +421,12 @@ def main():
                 fontproperties=fp,
                 fontsize=30,
                 fontweight="bold",
-                color="#cfe8ff",
+                color="#d32f2f",
                 y=0.98,
                 bbox=dict(
                     boxstyle="round,pad=0.35",
-                    facecolor="#0b1824",
-                    edgecolor="#6cc1ff",
+                    facecolor="#ffffff",
+                    edgecolor="#d32f2f",
                     linewidth=3.0,
                 ),
             )
@@ -434,13 +437,13 @@ def main():
                 ha="center",
                 va="center",
                 fontsize=10,
-                color="#cfe8ff",
+                color="#ffffff",
                 fontweight="bold",
                 family="DejaVu Sans",
                 bbox=dict(
                     boxstyle="round,pad=0.25",
-                    facecolor="#0b121a",
-                    edgecolor="#6cc1ff",
+                    facecolor="#b71c1c",
+                    edgecolor="#ffffff",
                     linewidth=1.0,
                     alpha=0.95,
                 ),
