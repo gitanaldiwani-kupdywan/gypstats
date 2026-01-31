@@ -39,8 +39,8 @@ def git_sync(repo_dir: str):
     def run(cmd):
         subprocess.run(cmd, check=True, cwd=repo_dir)
 
-    # Stage only DBs and plots
-    run(["git", "add", "goldprice.db", "silverprice.db", "GSPLN.db", "plots/"])
+    # Stage only DBs, plots, and index page
+    run(["git", "add", "goldprice.db", "silverprice.db", "GSPLN.db", "plots/", "index.html"])
     # Commit only if there are staged changes
     status = subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=repo_dir)
     if status.returncode == 0:
