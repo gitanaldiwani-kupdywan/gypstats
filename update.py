@@ -110,7 +110,8 @@ def main():
     gold_db = os.path.join(here, "goldprice.db")
     silver_db = os.path.join(here, "silverprice.db")
 
-    yesterday = date.today() - timedelta(days=1)
+    # MetalpriceAPI "yesterday" aligns to UTC, so use UTC date here.
+    yesterday = datetime.utcnow().date() - timedelta(days=1)
     if yesterday < MIN_DATE:
         print("Yesterday is before MIN_DATE; nothing to do.")
         return
