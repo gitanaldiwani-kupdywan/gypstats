@@ -32,4 +32,10 @@ jobs:
         env:
           METALPRICE_API_KEY: ${{ secrets.METALPRICE_API_KEY }}
         run: |
+          if [ -z "$METALPRICE_API_KEY" ]; then
+            echo "METALPRICE_API_KEY is not set. Add it in repo secrets." >&2
+            exit 1
+          fi
+          git config user.email "actions@github.com"
+          git config user.name "github-actions[bot]"
           python update.py
