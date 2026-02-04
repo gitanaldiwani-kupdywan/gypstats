@@ -187,11 +187,26 @@ def main():
         print("No xagusd data to plot.", file=sys.stderr)
         sys.exit(1)
 
-    def plot_one(dates, values, title, ylabel, ax, color=None, linewidth=1.5, linestyle="-"):
+    def plot_one(dates, values, title, ylabel, ax, color=None, linewidth=1.5, linestyle="-", zero_min=False):
         ax.plot(dates, values, linewidth=linewidth, color=color, linestyle=linestyle)
         ax.set_title(title)
         ax.set_xlabel("Date")
         ax.set_ylabel(ylabel)
+        if zero_min:
+            ax.set_ylim(bottom=0)
+        if values:
+            vmin = min(values)
+            vmax = max(values)
+            ax.text(
+                0.99,
+                0.04,
+                f"min {vmin:.2f} · max {vmax:.2f}",
+                transform=ax.transAxes,
+                ha="right",
+                va="bottom",
+                fontsize=8,
+                color="#9aa3ad",
+            )
         for label in ax.get_xticklabels():
             label.set_rotation(45)
 
@@ -203,6 +218,7 @@ def main():
         plt.gca(),
         color="#d4af37",
         linewidth=2.6,
+        zero_min=True,
     )
     gold_out = args.out_gold
     if not gold_out and not args.show:
@@ -223,6 +239,7 @@ def main():
         plt.gca(),
         color="#c0c0c0",
         linewidth=2.6,
+        zero_min=True,
     )
     silver_out = args.out_silver
     if not silver_out and not args.show:
@@ -240,7 +257,7 @@ def main():
         usdpln_list, xaupln_list, xagpln_list = write_gspln_db(gspln_db, joined_dates, joined_xauusd, joined_xagusd)
         gsr_values = [g / s for g, s in zip(joined_xauusd, joined_xagusd)]
 
-        fig, axes = plt.subplots(4, 1, figsize=(10, 12), sharex=True)
+        fig, axes = plt.subplots(7, 1, figsize=(10, 18), sharex=True)
         # Banner-style header with a carpet-like pattern
         banner = Rectangle(
             (0.0, 0.92),
@@ -315,6 +332,7 @@ def main():
             axes[0],
             color="#d4af37",
             linewidth=2.6,
+            zero_min=True,
         )
         plot_one(
             joined_dates,
@@ -324,8 +342,24 @@ def main():
             axes[1],
             color="#c0c0c0",
             linewidth=2.6,
+            zero_min=True,
         )
         plot_one(joined_dates, gsr_values, "GSR (XAUUSD / XAGUSD)", "Ratio", axes[2], color="#d64545", linewidth=2.0, linestyle=":")
+        # First derivative (day-to-day change)
+        def derivative(series):
+            if not series:
+                return series
+            diffs = [0.0]
+            for i in range(1, len(series)):
+                diffs.append(float(series[i]) - float(series[i - 1]))
+            return diffs
+
+        d_xau = derivative(joined_xauusd)
+        d_xag = derivative(joined_xagusd)
+        d_gsr = derivative(gsr_values)
+        plot_one(joined_dates, d_xau, "dXAUUSD (day-to-day change)", "Δ XAUUSD", axes[3], color="#d4af37", linewidth=2.0)
+        plot_one(joined_dates, d_xag, "dXAGUSD (day-to-day change)", "Δ XAGUSD", axes[4], color="#c0c0c0", linewidth=2.0, linestyle="--")
+        plot_one(joined_dates, d_gsr, "dGSR (day-to-day change)", "Δ GSR", axes[5], color="#d64545", linewidth=2.0, linestyle=":")
         # Trend overlay (normalized to first value) for visual comparison
         def normalize(series):
             if not series or series[0] == 0:
@@ -333,7 +367,7 @@ def main():
             base = float(series[0])
             return [float(v) / base for v in series]
 
-        axes[3].plot(
+        axes[6].plot(
             joined_dates,
             normalize(joined_xauusd),
             linestyle="-",
@@ -341,7 +375,7 @@ def main():
             color="#d4af37",
             label="XAUUSD",
         )
-        axes[3].plot(
+        axes[6].plot(
             joined_dates,
             normalize(joined_xagusd),
             linestyle="--",
@@ -349,7 +383,7 @@ def main():
             color="#c0c0c0",
             label="XAGUSD",
         )
-        axes[3].plot(
+        axes[6].plot(
             joined_dates,
             normalize(gsr_values),
             linestyle=":",
@@ -357,10 +391,10 @@ def main():
             color="#d64545",
             label="GSR",
         )
-        axes[3].set_title("Trends overlay (normalized)")
-        axes[3].set_ylabel("Index")
-        axes[3].legend(loc="upper left")
-        for label in axes[3].get_xticklabels():
+        axes[6].set_title("Trends overlay (normalized)")
+        axes[6].set_ylabel("Index")
+        axes[6].legend(loc="upper left")
+        for label in axes[6].get_xticklabels():
             label.set_rotation(45)
         fig.tight_layout(rect=(0, 0, 1, 0.865))
 
@@ -448,8 +482,8 @@ def main():
                     alpha=0.95,
                 ),
             )
-            plot_one(pln_dates, pln_xau, "XAUPLN (PLN per troy oz)", "PLN / XAU", axes_pln[0], color="#d4af37", linewidth=2.6)
-            plot_one(pln_dates, pln_xag, "XAGPLN (PLN per troy oz)", "PLN / XAG", axes_pln[1], color="#c0c0c0", linewidth=2.6)
+            plot_one(pln_dates, pln_xau, "XAUPLN (PLN per troy oz)", "PLN / XAU", axes_pln[0], color="#d4af37", linewidth=2.6, zero_min=True)
+            plot_one(pln_dates, pln_xag, "XAGPLN (PLN per troy oz)", "PLN / XAG", axes_pln[1], color="#c0c0c0", linewidth=2.6, zero_min=True)
             plot_one(pln_dates, pln_gsr, "GSR (XAUUSD / XAGUSD)", "Ratio", axes_pln[2], color="#d64545", linewidth=2.0, linestyle=":")
 
             def normalize(series):
